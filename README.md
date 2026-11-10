@@ -13,7 +13,7 @@ A client-side companion for **Z Route: Redemption**, migrated from the original 
 - VS / Mission Readiness guides and Events Hub
 - Fighter Command planner
 - Local/server clocks, daily checklist and tips
-- Event stamina goal calculator with resource-priority planning
+- Event stamina goal calculator with selectable 10- or 50-stamina can priority
 - Screenshot OCR using Tesseract.js, loaded on demand in the browser
 - JSON/TXT import, export and backup
 - Custom backgrounds and compact/basic/advanced modes
