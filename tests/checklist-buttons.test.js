@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 const tabs = await readFile(new URL('../public/js/02-tabs.js', import.meta.url), 'utf8');
 const navigation = await readFile(new URL('../public/js/13-command-strip-navigation.js', import.meta.url), 'utf8');
 const styles = await readFile(new URL('../src/styles/app.css', import.meta.url), 'utf8');
+const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
 test('VS day checklist renders native buttons, not checkbox inputs', () => {
   const start = tabs.indexOf('function highlightVsDay()');
@@ -34,4 +35,10 @@ test('command buttons persist state and expose accessible pressed state', () => 
 
 test('command buttons retain a mobile-friendly 44px minimum touch target', () => {
   assert.match(styles, /\.cmd-chip\s*\{[^}]*min-height:\s*44px/s);
+});
+
+
+test('checklist renderer scripts use versioned URLs to bypass stale browser caches', () => {
+  assert.match(index, /<script defer src="\\/js\\/02-tabs\\.js\\?v=\\d{8}-\\d+"><\\/script>/);
+  assert.match(index, /<script defer src="\\/js\\/13-command-strip-navigation\\.js\\?v=\\d{8}-\\d+"><\\/script>/);
 });
