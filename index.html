@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Z Route: Redemption casualty, formation, battle, fighter and event planning tools.">
+<title>Z Route: Redemption – Casualty & Rotation Analyzer</title>
+<link rel="stylesheet" href="/src/styles/app.css">
+</head>
+<body>
+
+<h1>⚔️ Z Route: Redemption – Casualty & Rotation Analyzer</h1>
+<p class="muted">Live meta from zrouteops.com • zroutehq.com • zroute-tools.com (Oct 2026). All data client-side. No account required.</p>
+
+<div class="card" id="commandStrip" style="margin-bottom:12px;padding:10px 14px">
+  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
+    <div>
+      <strong id="cmdToday">Today</strong>
+      <span class="muted" id="cmdHint"> · Tap chips when done</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      <button class="secondary" onclick="goTab('formation')">Formation</button>
+      <button class="secondary" onclick="goTab('kill')">Kill Calc</button>
+      <button class="secondary" onclick="goTab('events')">Events</button>
+      <button class="secondary" onclick="goTab('fighter')">Fighter</button>
+      <button class="green" onclick="saveRoster()">Save</button>
+      <button class="secondary" onclick="syncAllTabs()">Sync</button>
+      <button class="secondary" onclick="undoLast()">Undo</button>
+    </div>
+  </div>
+  <div id="cmdSpend" style="margin-top:8px;font-size:0.85rem"></div>
+</div>
+
+<div class="card" style="margin-bottom:12px">
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
+    <div>
+      <strong>Mode:</strong>
+      <button id="btnBasic" class="green" onclick="setMode('basic')" style="margin-left:6px">Basic</button>
+      <button id="btnAdvanced" class="secondary" onclick="setMode('advanced')">Advanced</button>
+    </div>
+    <button class="secondary" onclick="toggleHelp()">📘 How to use this tool</button>
+    <button class="secondary" onclick="toggleBgLibrary()">🖼️ Background</button>
+    <button class="secondary" onclick="toggleCompact()">Compact</button>
+    <span class="save-ind" id="saveInd">Not saved yet</span>
+    <input type="file" id="bgFile" accept="image/*" style="display:none" onchange="setBackground(event)">
+  </div>
+  <div id="bgLibrary" class="card" style="display:none;margin-top:8px;padding:10px">
+    <strong>Background library</strong>
+    <div style="margin-top:8px">
+      <span class="bg-preset bg-none active" data-bg="none" onclick="pickBgPreset(this)" title="None"></span>
+      <span class="bg-preset bg-city" data-bg="city" onclick="pickBgPreset(this)" title="City"></span>
+      <span class="bg-preset bg-hangar" data-bg="hangar" onclick="pickBgPreset(this)" title="Hangar"></span>
+      <span class="bg-preset bg-ember" data-bg="ember" onclick="pickBgPreset(this)" title="Ember"></span>
+      <span class="bg-preset bg-void" data-bg="void" onclick="pickBgPreset(this)" title="Void"></span>
+      <button class="secondary" onclick="document.getElementById('bgFile').click()">Upload…</button>
+      <button class="secondary" onclick="clearBackground();pickBgPreset(document.querySelector('.bg-preset.bg-none'))">Clear</button>
+    </div>
+  </div>
+  <div class="card" id="clockBar" style="margin-top:10px;padding:10px 14px">
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
+      <div style="display:flex;gap:18px;flex-wrap:wrap">
+        <div><span class="muted">LOCAL</span><br><strong id="clockLocal" style="font-size:1.3rem;letter-spacing:1px">—</strong></div>
+        <div><span class="muted">SERVER</span><br><strong id="clockServer" style="font-size:1.3rem;letter-spacing:1px;color:var(--accent2)">—</strong></div>
+        <div><span class="muted">Your zone</span><br><span id="clockZone" class="muted" style="font-size:0.85rem">—</span></div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <label class="muted" style="margin:0">Server offset (h)</label>
+        <input type="number" id="serverOffsetTop" value="2" step="0.5" style="width:72px" onchange="onServerOffsetChange()" title="From game: SERVER − LOCAL">
+        <select id="timeModeTop" onchange="onTimeModeChange()" style="width:auto;min-width:120px">
+          <option value="local">Guide: Local</option>
+          <option value="server" selected>Guide: Server</option>
+        </select>
+        <button class="secondary" onclick="detectTimezone()">Detect TZ</button>
+      </div>
+    </div>
+    <p class="muted" style="margin-top:6px;font-size:0.8rem">Match the in-game LOCAL / SERVER bar. Default offset +2h (from your screenshot). Saved on this device.</p>
+  </div>
+  <div id="helpBox" style="display:none;margin-top:12px;font-size:0.9rem">
+    <h3 style="margin-bottom:6px">How to use</h3>
+    <ol style="padding-left:18px;line-height:1.6">
+      <li><strong>Roster</strong> – Profile slots, heroes, troops T1–T10. Everything else reads from here.</li>
+      <li><strong>Formation</strong> – Auto-build from roster (5 / 4 / 3+2 / mix / top power).</li>
+      <li><strong>Casualties & Kill Calc</strong> – Auto-filled from hospital, soldiers, tier, hero power.</li>
+      <li><strong>Stats / Readiness / Meta</strong> – Strength overview, VS tips, community meta.</li>
+    </ol>
+    <h3 style="margin:12px 0 6px">What you can upload</h3>
+    <ul style="padding-left:18px;line-height:1.55;font-size:0.9rem">
+      <li><strong>Screenshots (OCR)</strong> – Squad lineup, hero list, hero cards, total power screens. Clear text works best. Image never leaves your device.</li>
+      <li><strong>TXT export</strong> – Files from this tool, or lines like <code>Arnold	5	1200000</code>.</li>
+      <li><strong>Battle text paste</strong> – Casualties tab (Advanced): paste report numbers.</li>
+      <li><strong>Not yet</strong> – Video, PDF, or perfect gear OCR.</li>
+    </ul>
+    <p class="muted" style="margin-top:8px"><strong>Cross-tabs:</strong> Save / OCR / Apply troops syncs power & soldiers into Formation, Casualties, Kill Calc, Stats.</p>
+    <p class="muted"><strong>Basic</strong> = simpler UI · <strong>Advanced</strong> = formulas, paste, chips.</p>
+  </div>
+</div>
+
+<div class="tabs" id="tabs">
+  <div class="tab active" data-tab="roster">👤 Roster</div>
+  <div class="tab" data-tab="formation">🛡️ Formation</div>
+  <div class="tab" data-tab="casualty">💀 Casualties</div>
+  <div class="tab" data-tab="kill">⚔️ Kill Calc</div>
+  <div class="tab" data-tab="history">📜 Battle Log</div>
+  <div class="tab" data-tab="stats">📊 Stats</div>
+  <div class="tab" data-tab="readiness">🎯 Readiness</div>
+  <div class="tab" data-tab="meta">📡 Live Meta</div>
+  <div class="tab" data-tab="heroes">🦸 Heroes</div>
+  <div class="tab" data-tab="vsguide">📅 VS + MR</div>
+  <div class="tab" data-tab="events">🎪 Events</div>
+  <div class="tab" data-tab="fighter">✈️ Fighter</div>
+  <div class="tab" data-tab="now">⚡ Now</div>
+  <div class="tab" data-tab="tips">💡 Tips</div>
+  <div class="tab" data-tab="tools">🧰 Tools</div>
+  <div class="tab" data-tab="about">ℹ️ About</div>
+</div>
+
+<!-- ========== ROSTER ========== -->
+<div id="roster" class="panel active">
+  <div class="card">
+    <h2>👤 Player Profile</h2>
+    <div class="grid grid-2">
+      <div>
+        <label>Active profile slot</label>
+        <select id="profileSlot" onchange="switchProfile()">
+          <option value="main">Main</option>
+          <option value="alt">Alt</option>
+          <option value="mate">Alliance Mate</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div>
+        <label>Profile / Display Name</label>
+        <input type="text" id="username" placeholder="Your name or commander name">
+      </div>
+      <div>
+        <label>In-game Username (optional)</label>
+        <input type="text" id="ingameName" placeholder="Z Route username">
+      </div>
+      <div>
+        <label>Last saved</label>
+        <input type="text" id="saveDate" readonly placeholder="Not saved yet" style="opacity:0.85">
+      </div>
+      <div style="grid-column:1/-1">
+        <label>Description / Notes</label>
+        <textarea id="profileDesc" rows="2" placeholder="Alliance, server, goals, notes…"></textarea>
+      </div>
+      <div>
+        <label>Hospital Capacity (free beds)</label>
+        <input type="number" id="hospital" value="5000" min="0">
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
+      <button class="green" onclick="startWizard()">🧙 First-time Wizard</button>
+      <button class="secondary" onclick="shareLink()">🔗 Copy Share Link</button>
+      <button class="secondary" onclick="printSummary()">🖨️ Print / PDF Summary</button>
+      <button class="secondary" onclick="openCompare()">📊 Compare two TXT</button>
+    </div>
+    <p class="muted" style="margin-top:8px">Each profile slot has its own roster in this browser. Export TXT or Share Link to backup/share.</p>
+  </div>
+
+  <div class="card">
+    <h2>🦸 My Heroes (Roster)</h2>
+    <p class="muted">Starts empty. Add heroes you own. Avatar: <span style="color:#d4a017">Gold = Warrior</span> · <span style="color:#c0392b">Red = Tactical</span> · <span style="color:#2980b9">Blue = Assault</span>.</p>
+
+    <div class="advanced-only" style="margin-bottom:12px">
+      <label>Quick multi-select (tap heroes that match your squad screenshots)</label>
+      <div id="heroChips" style="margin-top:6px;max-height:160px;overflow-y:auto"></div>
+      <button class="green" onclick="applyChipSelection()" style="margin-top:8px">Apply selected to roster</button>
+    </div>
+
+    <div id="rosterList" class="grid"></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+      <button onclick="addHeroRow()">+ Add Hero</button>
+      <button class="green" onclick="askAddHero()">❓ Ask & Add Hero</button>
+      <button class="secondary" onclick="saveRoster()">💾 Save to Cache</button>
+      <button class="secondary" onclick="loadRoster()">📂 Load from Cache</button>
+      <button onclick="clearRoster()" style="background:#555">🗑️ Clear List</button>
+      <button class="secondary" onclick="exportRosterTxt()">⬇️ Export TXT</button>
+      <button class="secondary" onclick="importRosterTxt()">⬆️ Import TXT</button>
+      <button class="secondary" onclick="loadFromScreenshots()">Load Full Hero DB</button>
+    </div>
+    <input type="file" id="importFile" accept=".txt,.json,text/plain" style="display:none" onchange="handleImportFile(event)">
+    <input type="file" id="compareFile1" accept=".txt,text/plain" style="display:none">
+    <input type="file" id="compareFile2" accept=".txt,text/plain" style="display:none">
+    <input type="file" id="ocrFile" accept="image/*" style="display:none" onchange="runOCR(event)">
+    <div id="suggestions" class="tip" style="margin-top:12px;display:none"></div>
+  </div>
+
+  <div class="card">
+    <h2>📷 Scan screenshot (OCR – free & private)</h2>
+    <p class="muted">Best: <strong>squad lineup</strong>, <strong>hero list</strong>, or <strong>hero detail</strong> screens with readable names. Image is <strong>never uploaded or saved</strong> — OCR runs in your browser only.</p>
+    <button class="green" onclick="document.getElementById('ocrFile').click()">📷 Choose screenshot</button>
+    <div id="ocrStatus" class="muted" style="margin-top:8px"></div>
+    <pre id="ocrRaw" style="display:none;max-height:140px;overflow:auto;font-size:0.75rem;background:#0d1117;padding:8px;border-radius:6px;margin-top:8px;white-space:pre-wrap"></pre>
+    <div id="ocrMatches" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <h2>🪖 Troop Counts by Tier (T1–T10)</h2>
+    <p class="muted">Enter how many soldiers you have per tier. Used by Casualties & Kill Calc.</p>
+    <div class="grid grid-3" id="troopCountGrid">
+      <div><label>T1</label><input type="number" id="tc1" value="0" min="0"></div>
+      <div><label>T2</label><input type="number" id="tc2" value="0" min="0"></div>
+      <div><label>T3</label><input type="number" id="tc3" value="0" min="0"></div>
+      <div><label>T4</label><input type="number" id="tc4" value="0" min="0"></div>
+      <div><label>T5</label><input type="number" id="tc5" value="0" min="0"></div>
+      <div><label>T6</label><input type="number" id="tc6" value="0" min="0"></div>
+      <div><label>T7</label><input type="number" id="tc7" value="0" min="0"></div>
+      <div><label>T8</label><input type="number" id="tc8" value="0" min="0"></div>
+      <div><label>T9</label><input type="number" id="tc9" value="0" min="0"></div>
+      <div><label>T10</label><input type="number" id="tc10" value="0" min="0"></div>
+    </div>
+    <button class="secondary" onclick="applyTroopCounts()" style="margin-top:8px">Apply to Casualties & Kill Calc</button>
+    <span id="troopTotal" class="muted" style="margin-left:8px"></span>
+  </div>
+</div>
+
+<!-- Compare modal area -->
+<div id="compareBox" class="card" style="display:none;margin-top:12px">
+  <h2>📊 Compare two roster TXT files</h2>
+  <p class="muted">Select two exports to see power / hero differences.</p>
+  <button class="secondary" onclick="document.getElementById('compareFile1').click()">Pick TXT A</button>
+  <button class="secondary" onclick="document.getElementById('compareFile2').click()">Pick TXT B</button>
+  <button class="green" onclick="runCompare()">Compare</button>
+  <button onclick="document.getElementById('compareBox').style.display='none'" style="background:#555">Close</button>
+  <div id="compareResult" style="margin-top:12px;font-size:0.9rem"></div>
+</div>
+
+<!-- ========== FORMATION ========== -->
+<div id="formation" class="panel">
+  <div class="card">
+    <h2>🛡️ Squad Formation & Positioning Impact</h2>
+    <p class="muted">Build squads by faction rules or top power. Front-Right = highest damage taken (tank). Back-Center = safest (DPS).</p>
+
+    <div style="margin-bottom:12px">
+      <label>Auto-build from your roster</label>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+        <button class="secondary" onclick="autoForm('5','Warrior')">5 Warrior (+20%)</button>
+        <button class="secondary" onclick="autoForm('5','Tactical')">5 Tactical (+20%)</button>
+        <button class="secondary" onclick="autoForm('5','Assault')">5 Assault (+20%)</button>
+        <button class="secondary" onclick="autoForm('4')">4 same (+15%)</button>
+        <button class="secondary" onclick="autoForm('4:1')">4+1 (+15%)</button>
+        <button class="secondary" onclick="autoForm('3:2')">3+2 (+10%)</button>
+        <button class="secondary" onclick="autoForm('3')">3 same (+5%)</button>
+        <button class="secondary" onclick="autoForm('mix')">Mix (0%)</button>
+        <button class="green" onclick="autoForm('top')">Top Power</button>
+      </div>
+    </div>
+
+    <div style="margin-bottom:10px">
+      <label>Active Squad</label>
+      <select id="squadNum" onchange="switchSquad()">
+        <option value="1">Squad 1</option>
+        <option value="2">Squad 2</option>
+        <option value="3">Squad 3</option>
+        <option value="4">Squad 4</option>
+        <option value="5">Squad 5</option>
+      </select>
+      <button class="secondary" onclick="saveCurrentSquad()" style="margin-left:6px">Save this squad</button>
+      <button class="secondary" onclick="buildRankedSquads()">Build 5 squads (high→low power)</button>
+    </div>
+
+    <div class="formation">
+      <div class="slot front"><div class="pos">Front-Left (High dmg)</div><select class="hero-select" id="fl" onchange="updateFactionBonus()"></select></div>
+      <div class="slot front" style="grid-column:2"><div class="pos">Front-Right (MOST dmg) – Tank</div><select class="hero-select" id="fr" onchange="updateFactionBonus()"></select></div>
+      <div></div>
+      <div class="slot back"><div class="pos">Back-Left</div><select class="hero-select" id="bl" onchange="updateFactionBonus()"></select></div>
+      <div class="slot back"><div class="pos">Back-Center (LEAST dmg) – DPS</div><select class="hero-select" id="bc" onchange="updateFactionBonus()"></select></div>
+      <div class="slot back"><div class="pos">Back-Right</div><select class="hero-select" id="br" onchange="updateFactionBonus()"></select></div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top:16px">
+      <div>
+        <h3>Formation Bonus</h3>
+        <div id="factionBonus" class="stat-box">
+          <div class="value" id="bonusValue">—</div>
+          <div class="label" id="bonusLabel">Same-faction bonus</div>
+        </div>
+      </div>
+      <div>
+        <h3>Position Survival Impact</h3>
+        <ul style="font-size:0.9rem;padding-left:18px">
+          <li><strong>Front-Right</strong> – highest damage → best tank</li>
+          <li><strong>Front-Left</strong> – still high damage</li>
+          <li><strong>Back-Center</strong> – safest → best DPS</li>
+          <li>Back-Left / Back-Right – medium damage</li>
+        </ul>
+      </div>
+    </div>
+
+    <div id="squadSummary" class="tip" style="margin-top:12px"></div>
+
+    <div class="tip">
+      <strong>Rules:</strong> 5 same = +20% · 4 same = +15% · 3+2 = +10% · 3 same = +5% · Mixed = no bonus. Faction counter still reduces damage by 20%.
+    </div>
+  </div>
+</div>
+
+<!-- ========== CASUALTY ========== -->
+<div id="casualty" class="panel">
+  <div class="card">
+    <h2>💀 Casualty Predictor (Soldiers Die / Wounded)</h2>
+    <div class="tip-note dont">Hospital overflow becomes permanent deaths. Higher T-tier reduces losses. <span class="estimated">Model estimate</span></div>
+    <p class="muted">Simple model based on power ratio, morale, hospital capacity and troop quality. Community-derived (Army Morale from zroutehq).</p>
+
+    <div class="grid grid-3">
+      <div>
+        <label>Your Soldiers Sent</label>
+        <input type="number" id="mySoldiers" value="10000" oninput="predictCasualties()">
+      </div>
+      <div>
+        <label>Enemy Soldiers / Power</label>
+        <input type="number" id="enemyPower" value="12000" oninput="predictCasualties()">
+      </div>
+      <div>
+        <label>Your Approx Power</label>
+        <input type="number" id="myPower" value="15000" oninput="predictCasualties()">
+      </div>
+      <div>
+        <label>Your Morale Bonus %</label>
+        <input type="number" id="myMorale" value="30" oninput="predictCasualties()">
+      </div>
+      <div>
+        <label>Enemy Morale Bonus %</label>
+        <input type="number" id="enemyMorale" value="20" oninput="predictCasualties()">
+      </div>
+      <div>
+        <label>Your Troop Tier (T1–T10)</label>
+        <select id="troopTier" onchange="updateTierPreview();predictCasualties()">
+          <option value="1">T1</option>
+          <option value="2">T2</option>
+          <option value="3">T3</option>
+          <option value="4">T4</option>
+          <option value="5">T5</option>
+          <option value="6" selected>T6</option>
+          <option value="7">T7</option>
+          <option value="8">T8</option>
+          <option value="9">T9</option>
+          <option value="10">T10</option>
+        </select>
+        <div id="tierColorPreview" style="margin-top:6px"></div>
+      </div>
+    </div>
+
+    <div class="advanced-only" style="margin-top:12px">
+      <label>Paste battle report text (optional – auto-fills numbers if it finds them)</label>
+      <textarea id="battlePaste" rows="2" placeholder="e.g. Soldiers 12000 Dead 800 Wounded 2100 Power 15.2M …"></textarea>
+      <button class="secondary" onclick="parseBattlePaste()" style="margin-top:4px">Parse paste into fields</button>
+    </div>
+
+    <button onclick="predictCasualties()" style="margin-top:12px">Predict Deaths & Wounds</button>
+    <button class="secondary" onclick="saveBattle()">Save to Battle Log</button>
+
+    <div id="predictionResult" class="grid grid-3" style="margin-top:16px;display:none">
+      <div class="stat-box">
+        <div class="value bad" id="predDead">—</div>
+        <div class="label">Expected Dead</div>
+      </div>
+      <div class="stat-box">
+        <div class="value warn" id="predWounded">—</div>
+        <div class="label">Expected Wounded (Hospital)</div>
+      </div>
+      <div class="stat-box">
+        <div class="value good" id="predSurvive">—</div>
+        <div class="label">Expected Survive</div>
+      </div>
+    </div>
+
+    <div id="casualtyTips" class="tip" style="display:none;margin-top:12px"></div>
+  </div>
+
+  <div class="card advanced-only">
+    <h2>⚙️ How Hits / Deaths Are Calculated (Simplified)</h2>
+    <ul style="font-size:0.9rem;padding-left:18px">
+      <li><strong>Army Morale</strong> = Soldiers × BaseMorale (~501.5) × (1 + MoraleBonus%)</li>
+      <li>Morale Ratio → Damage Coefficient (higher ratio = you deal more / take less)</li>
+      <li>Power ratio + faction bonus + position modifiers further scale the final loss %</li>
+      <li>Hospital capacity decides how many wounded become permanent deaths when full</li>
+      <li>Some events (certain Sieges) force 0 deaths – everything goes to hospital</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ========== KILL CALCULATOR ========== -->
+<div id="kill" class="panel">
+  <div class="card">
+    <h2>⚔️ Kill Calculator – Solo vs Rally</h2>
+    <div class="tip-note">Include fighter power via Fighter tab → Apply. Rally with mates when ratio is low. <span class="estimated">Estimate</span></div>
+    <p class="muted">Estimate what you can kill alone or with alliance help. Enter your own numbers (example values are loaded by default).</p>
+
+    <div class="grid grid-2">
+      <div>
+        <h3>Your Side</h3>
+        <label>Your Total Power</label>
+        <input type="number" id="killMyPower" value="10000000">
+        <label>Your Hero Power</label>
+        <input type="number" id="killHeroPower" value="7000000">
+        <label>Your Soldier Power</label>
+        <input type="number" id="killSoldierPower" value="300000">
+        <label>Soldiers you will send</label>
+        <input type="number" id="killMySoldiers" value="10000">
+        <label>Your average Troop Tier (T1–T10)</label>
+        <select id="killMyTier">
+          <option value="1">T1</option><option value="2">T2</option><option value="3">T3</option>
+          <option value="4">T4</option><option value="5">T5</option><option value="6" selected>T6</option>
+          <option value="7">T7</option><option value="8">T8</option><option value="9">T9</option>
+          <option value="10">T10</option>
+        </select>
+        <label>Hospital free beds</label>
+        <input type="number" id="killHospital" value="8000">
+      </div>
+      <div>
+        <h3>Target / Enemy</h3>
+        <label>Enemy Total Power</label>
+        <input type="number" id="killEnemyPower" value="8000000">
+        <label>Enemy Soldier estimate</label>
+        <input type="number" id="killEnemySoldiers" value="9000">
+        <label>Enemy average Troop Tier (T1–T10)</label>
+        <select id="killEnemyTier">
+          <option value="1">T1</option><option value="2">T2</option><option value="3">T3</option>
+          <option value="4">T4</option><option value="5" selected>T5</option><option value="6">T6</option>
+          <option value="7">T7</option><option value="8">T8</option><option value="9">T9</option>
+          <option value="10">T10</option>
+        </select>
+        <label style="margin-top:12px">Rally size (1 = solo)</label>
+        <input type="number" id="killRallySize" value="1" min="1" max="30">
+        <label>Average power of each rally member (if >1)</label>
+        <input type="number" id="killAllyPower" value="8000000">
+      </div>
+    </div>
+
+    <button onclick="calcKill()" style="margin-top:14px">Calculate Kill Chance</button>
+    <button class="secondary" onclick="setGenericDefaults()">Reset to example values</button>
+
+    <div id="killResult" style="display:none;margin-top:16px">
+      <div class="grid grid-3">
+        <div class="stat-box">
+          <div class="value" id="killChance">—</div>
+          <div class="label">Kill Probability</div>
+          <div class="gauge"><span id="killGauge" style="width:0%"></span></div>
+        </div>
+        <div class="stat-box">
+          <div class="value bad" id="killMyDead">—</div>
+          <div class="label">Your Expected Dead</div>
+        </div>
+        <div class="stat-box">
+          <div class="value warn" id="killMyWound">—</div>
+          <div class="label">Your Expected Wounded</div>
+        </div>
+      </div>
+      <div class="tip" id="killTips" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <div class="card advanced-only">
+    <h2>How the Kill Calculator works</h2>
+    <ul style="padding-left:18px;font-size:0.9rem">
+      <li>Compares effective power (Hero + Soldier × tier multiplier) vs enemy.</li>
+      <li>Rally multiplies your side by the number of members (with diminishing returns after 5–6).</li>
+      <li>Higher troop tier reduces your losses and increases kill chance.</li>
+      <li>Hospital overflow turns wounded into permanent deaths.</li>
+      <li>This is a simplified model – real results also depend on formation, counters and RNG.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ========== HISTORY / COMPARE ========== -->
+<div id="history" class="panel">
+  <div class="card">
+    <h2>📜 Battle Log & Compare</h2>
+    <p class="muted">Saved battles stay in your browser. Scroll to compare multiple fights side-by-side.</p>
+    <div id="battleList"></div>
+    <button class="secondary" onclick="clearBattles()">Clear All Logs</button>
+  </div>
+</div>
+
+<!-- ========== STATS ========== -->
+<div id="stats" class="panel">
+  <div class="card">
+    <h2>📊 Stats Dashboard – Effect of Other Z Route Stats</h2>
+    <div class="grid grid-3" id="statsGrid">
+      <div class="stat-box"><div class="value" id="statRoster">0</div><div class="label">Heroes in Roster</div></div>
+      <div class="stat-box"><div class="value" id="statAvgStars">—</div><div class="label">Avg Stars (owned)</div></div>
+      <div class="stat-box"><div class="value" id="statBattles">0</div><div class="label">Battles Logged</div></div>
+    </div>
+
+    <h3 style="margin-top:20px">Other Stats That Affect Casualties</h3>
+    <table>
+      <thead><tr><th>Stat</th><th>Effect on Soldiers / Enemies</th><th>How it is calculated</th></tr></thead>
+      <tbody>
+        <tr><td>Faction Bonus</td><td>+5% / +15% / +20% HP ATK DEF</td><td>Count same-faction heroes in the 5 slots</td></tr>
+        <tr><td>Counter Triangle</td><td>−20% damage taken from the weaker faction</td><td>Warrior ← Assault ← Tactical ← Warrior</td></tr>
+        <tr><td>Position (Front-Right)</td><td>Highest incoming damage</td><td>Hard-coded slot weights from community data</td></tr>
+        <tr><td>Army Morale</td><td>Damage coefficient multiplier</td><td>Soldiers × 501.5 × (1 + bonus%)</td></tr>
+        <tr><td>Hospital Capacity</td><td>Wounded → Dead when full</td><td>Free beds vs predicted wounded</td></tr>
+        <tr><td>Troop Tier / Level</td><td>Higher tier = fewer losses for same power</td><td>Multiplier 1.0–1.5 in predictor</td></tr>
+        <tr><td>Decorations / Tech</td><td>Global ATK / DEF / HP</td><td>Account-wide % (enter in morale bonus)</td></tr>
+        <tr><td>Hero Stars & Gear</td><td>Skill caps + base stats</td><td>4★ unlocks Doomsday Judgment (+20% all)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== READINESS ========== -->
+<div id="readiness" class="panel">
+  <div class="card">
+    <h2>🎯 VS / Raid / Alliance Readiness Score</h2>
+    <p class="muted">Combines roster strength, hospital space, and current VS stage (inspired by zroute-tools Route Reminder).</p>
+    <div class="grid grid-2">
+      <div>
+        <label>Current VS Stage / Day</label>
+        <select id="vsStage">
+          <option value="1">Day 1 – Radar</option>
+          <option value="2">Day 2 – Building</option>
+          <option value="3">Day 3 – Research</option>
+          <option value="4">Day 4 – Training</option>
+          <option value="5">Day 5 – Combat Readiness</option>
+          <option value="6">Day 6 – Raid Day</option>
+          <option value="7">Day 7 – Rest</option>
+        </select>
+      </div>
+      <div>
+        <label>Free Hospital Beds</label>
+        <input type="number" id="readyHospital" value="5000">
+      </div>
+    </div>
+    <button onclick="calcReadiness()" style="margin-top:12px">Calculate Readiness</button>
+    <div id="readinessResult" class="stat-box" style="margin-top:16px;display:none">
+      <div class="value" id="readyScore">—</div>
+      <div class="label" id="readyLabel">Readiness Score</div>
+    </div>
+    <div id="readinessTips" class="tip" style="display:none;margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- ========== META ========== -->
+<div id="meta" class="panel">
+  <div class="card">
+    <h2>📡 Live Meta Snapshot (Oct 2026)</h2>
+    <p class="muted">Pulled from public pages of zrouteops.com, zroutehq.com and zroute-tools.com. <span class="verified">Community</span> · Last bundled: Oct 2026 — refresh page after major patches.</p>
+
+    <h3>Current S-Tier Core (Warrior)</h3>
+    <p>Monroe (DPS) • Arnold (Tank) • Dirk (Tank) • Carter (Support) • Lucian (DPS)</p>
+    <p>Best for most raids, Arena, Garrison and Warrior Giant Invader.</p>
+    <button class="green" onclick="applyMetaCore()">Apply this core to Formation</button>
+
+    <h3>Formation Rules (from your Camp Effects screenshot)</h3>
+    <ul style="padding-left:18px;font-size:0.9rem">
+      <li><strong>3 same faction</strong> → +5% Hero HP / ATK / DEF</li>
+      <li><strong>3 + 2 same</strong> → +10%</li>
+      <li><strong>4 same</strong> → +15%</li>
+      <li><strong>5 same</strong> → +20%</li>
+      <li>Faction Counters reduce damage by <strong>20%</strong></li>
+      <li>Front-Right takes the most damage → put best tank there</li>
+      <li>Back-Center is safest → best DPS</li>
+    </ul>
+    <p class="muted">Faction colors in this tool: <span style="color:#d4a017">■ Warrior (Gold)</span> · <span style="color:#c0392b">■ Tactical (Red)</span> · <span style="color:#2980b9">■ Assault (Blue)</span></p>
+    <h3>Troop Tiers (T1–T10)</h3>
+    <p class="muted">Higher tier soldiers take fewer losses for the same power. From your Training Camp screenshots:</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">
+      <span class="tier t1">T1</span><span class="tier t2">T2</span><span class="tier t3">T3</span>
+      <span class="tier t4">T4</span><span class="tier t5">T5</span><span class="tier t6">T6</span>
+      <span class="tier t7">T7</span><span class="tier t8">T8</span>
+      <span class="tier t9">T9</span><span class="tier t10">T10</span>
+    </div>
+
+    <h3>Army Morale (zroutehq calculator)</h3>
+    <p>Army Morale = Soldiers × ~501.5 × (1 + Morale Bonus%). Higher ratio → better damage coefficient → fewer of your soldiers die.</p>
+
+    <h3>Useful external tools</h3>
+    <ul style="padding-left:18px;font-size:0.9rem">
+      <li><a href="https://zrouteops.com/" target="_blank" style="color:var(--accent2)">zrouteops.com</a> – roster tracker, event squads, upgrade path</li>
+      <li><a href="https://zroutehq.com/" target="_blank" style="color:var(--accent2)">zroutehq.com</a> – tier list, squad builder, Army Morale calculator</li>
+      <li><a href="https://zroute-tools.com/" target="_blank" style="color:var(--accent2)">zroute-tools.com</a> – VS reminder, radar calculator, hive planner</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ========== HEROES INFO ========== -->
+<div id="heroes" class="panel">
+  <div class="card">
+    <h2>🦸 Hero Database</h2>
+    <p class="muted">Search, filter, tap <strong>+ Roster</strong> to add. Power values are community snapshots.</p>
+    <input type="search" id="heroSearch" placeholder="Search hero name…" oninput="renderHeroTable()">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <select id="heroFilterFaction" onchange="renderHeroTable()">
+        <option value="">All factions</option>
+        <option value="Warrior">Warrior</option>
+        <option value="Tactical">Tactical</option>
+        <option value="Assault">Assault</option>
+      </select>
+      <select id="heroFilterRole" onchange="renderHeroTable()">
+        <option value="">All roles</option>
+        <option value="Tank">Tank</option>
+        <option value="DPS">DPS</option>
+        <option value="Support">Support</option>
+      </select>
+      <select id="heroFilterRarity" onchange="renderHeroTable()">
+        <option value="">All rarities</option>
+        <option value="UR">UR</option>
+        <option value="SSR">SSR</option>
+        <option value="SR">SR</option>
+      </select>
+    </div>
+    <div style="overflow-x:auto">
+      <table id="heroTable">
+        <thead><tr><th>Hero</th><th>Faction</th><th>Role</th><th>Rarity</th><th>Power</th><th>Lv</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ========== VS + MISSION READINESS ========== -->
+<div id="vsguide" class="panel">
+  <div class="card">
+    <h2>📅 VS + Mission Readiness Guide</h2>
+    <p class="muted">Align spends so one action scores on both tracks. Times below use your selected clock (local or server offset).</p>
+
+    <div class="grid grid-2" style="margin-bottom:12px">
+      <div>
+        <label>Clock mode</label>
+        <select id="timeMode" onchange="updateClocks()">
+          <option value="local">Local device time</option>
+          <option value="server">Server time (set offset)</option>
+        </select>
+      </div>
+      <div>
+        <label>Server offset vs local (hours)</label>
+        <input type="number" id="serverOffset" value="2" step="0.5" onchange="document.getElementById('serverOffsetTop').value=this.value;onServerOffsetChange()">
+      </div>
+    </div>
+    <div class="stat-box" style="margin-bottom:12px">
+      <div class="value" id="clockDisplay" style="font-size:1.2rem">—</div>
+      <div class="label" id="clockLabel">Current time</div>
+    </div>
+
+    <label>Highlight VS day</label>
+    <select id="vsDayPick" onchange="highlightVsDay()">
+      <option value="">Auto (today)</option>
+      <option value="0">Sunday</option>
+      <option value="1">Monday · Radar</option>
+      <option value="2">Tuesday · Construction</option>
+      <option value="3">Wednesday · Tech</option>
+      <option value="4">Thursday · Heroes</option>
+      <option value="5">Friday · Combat Ready</option>
+      <option value="6">Saturday · Raid</option>
+    </select>
+    <div id="vsDayChecklist" style="margin:10px 0"></div>
+
+    <h3>Alliance Competition (VS) week</h3>
+    <table id="vsWeekTable">
+      <tr><th>Day</th><th>Phase</th><th>Do today</th><th>Save for later</th></tr>
+      <tr><td>Mon</td><td>Radar (1)</td><td>Radar missions, stamina, Fighter Parts, Combat Chips, Hero EXP</td><td>Speedups, shards, trucks</td></tr>
+      <tr><td>Tue</td><td>Construction (2)</td><td>Finish buildings, build speedups, recruits</td><td>Research / training speedups, shards</td></tr>
+      <tr><td>Wed</td><td>Tech (2)</td><td>Research finishes, research speedups, Research Data, Fighter Component Chests</td><td>Hero shards, training speedups</td></tr>
+      <tr><td>Thu</td><td>Heroes (2)</td><td>Shards, recruit, Hero EXP, skill books</td><td>All speedups, radar stack</td></tr>
+      <tr><td>Fri</td><td>Combat Ready (2)</td><td>Train / upgrade troops, training speedups, power from training</td><td>Healing speedups for Raid</td></tr>
+      <tr><td>Sat</td><td>Raid (4)</td><td>Combat, healing, trucks, special ops — shield if offline</td><td>—</td></tr>
+      <tr><td>Sun</td><td>Rest</td><td>Stack radar, finish timers to collect on correct day</td><td>Bank next week’s materials</td></tr>
+    </table>
+
+    <h3 style="margin-top:16px">When to wait (double-dip VS + Mission Readiness)</h3>
+    <ul style="padding-left:18px;font-size:0.9rem;line-height:1.55">
+      <li><strong>Best rule:</strong> Only dump big speedups / shards / training when <em>both</em> the matching VS day and the matching Mission Readiness window are active.</li>
+      <li>Mission Readiness rotates categories in fixed daily windows (construction, train, research, heroes, fighter, etc.). Check in-game calendar for your server’s exact hours.</li>
+      <li>If VS is “Construction” but MR is “Train soldiers” right now → <strong>wait</strong> or do only cheap tasks; save build speedups until MR construction opens (or next Construction VS day).</li>
+      <li>Radar: stack missions before Monday; clear them on Radar day. Don’t burn the stack on a random day.</li>
+      <li>General speedups score on the day you <em>use</em> them, not when you bought them.</li>
+    </ul>
+
+    <h3>What to do while waiting</h3>
+    <ul style="padding-left:18px;font-size:0.9rem;line-height:1.55">
+      <li>Claim free stamina / daily freebies that don’t spoil VS points.</li>
+      <li>Clear expiring radar (keep red-dot saved ones).</li>
+      <li>Heal lightly if hospital is full before a fight day.</li>
+      <li>Plan upgrade timers so they <em>complete</em> on the scoring day (start early enough).</li>
+      <li>Alliance chat: confirm hive / shield times for Raid day.</li>
+      <li>Use external: <a href="https://zroute-tools.com/reminder/" target="_blank" style="color:var(--accent2)">Route Reminder</a> · <a href="https://zroute-tools.com/radar/" target="_blank" style="color:var(--accent2)">Radar Calculator</a></li>
+    </ul>
+    <div class="tip" style="margin-top:12px">
+      <strong>How zroute-tools.com gets your info:</strong> It does <em>not</em> log into the game or scrape your account. You type numbers from the game (radar level, missions on map, etc.). Values stay in <em>your browser</em> on that site — same model as this tool and zrouteops roster.
+    </div>
+  </div>
+</div>
+
+<!-- ========== EVENTS HUB ========== -->
+<div id="events" class="panel">
+  <div class="card">
+    <h2>🎪 Events Hub</h2>
+    <p class="muted">Quick guides from community charts (VS saving, Capital Appointments, Pandora, Devourers). Always check in-game calendar for exact times.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <button class="secondary" onclick="showEventSection('ev-vs')">VS Resource Days</button>
+      <button class="secondary" onclick="showEventSection('ev-capital')">Capital Appointments</button>
+      <button class="secondary" onclick="showEventSection('ev-pandora')">Pandora</button>
+      <button class="secondary" onclick="showEventSection('ev-devour')">Devourers</button>
+    </div>
+  </div>
+
+  <div id="ev-vs" class="card event-section">
+    <h2>VS Resource Saving Guide</h2>
+    <p class="muted"><strong>Golden rule:</strong> If unsure, SAVE IT for the correct VS day. Every member’s points help alliance victory.</p>
+    <table>
+      <tr><th>Resource</th><th>VS day(s)</th><th>Notes</th></tr>
+      <tr><td>Radar Missions</td><td>Mon / Wed / Fri</td><td>Stack the day before</td></tr>
+      <tr><td>Fighter Parts / Combat Chips / Modules</td><td>Mon</td><td>—</td></tr>
+      <tr><td>Stamina / Gather Food·Metal·Oil</td><td>Mon</td><td>—</td></tr>
+      <tr><td>Hero EXP</td><td>Mon / Thu</td><td>Use minimal to unlock chests if needed</td></tr>
+      <tr><td>Construction Speedups</td><td>Tue / Fri / Sat</td><td>Don’t collect builds until Construction day</td></tr>
+      <tr><td>Survivor Recruit Tickets</td><td>Tue</td><td>—</td></tr>
+      <tr><td>UR Trucks / Special Ops</td><td>Tue / Sat</td><td>—</td></tr>
+      <tr><td>Research Speedups / Scientific Data</td><td>Wed (speedups also Fri/Sat)</td><td>—</td></tr>
+      <tr><td>Fighter Component Chests</td><td>Wed</td><td>Do not open early</td></tr>
+      <tr><td>Hero Tickets / Shards / Skill Books</td><td>Thu</td><td>—</td></tr>
+      <tr><td>Training Speedups / Troop train</td><td>Fri / Sat</td><td>Tip #5 training focus on Fri</td></tr>
+      <tr><td>Healing Speedups</td><td>Sat / PvP / emergencies</td><td>—</td></tr>
+    </table>
+    <h3 style="margin-top:12px">Day-by-day (Stage 1–6)</h3>
+    <ul style="padding-left:18px;font-size:0.9rem;line-height:1.5">
+      <li><strong>Sun</strong> – No VS. Bank resources.</li>
+      <li><strong>Mon (1) Radar</strong> – Radar quests, gather, Fighter Parts/Chips, stamina.</li>
+      <li><strong>Tue (2) Construction</strong> – Recruit, UR trucks/ops, complete constructions, build speedups.</li>
+      <li><strong>Wed (3) Tech</strong> – Radar, research data, open component chests, research speedups.</li>
+      <li><strong>Thu (4) Heroes</strong> – Tickets/shards/skill books, Hero EXP, shards.</li>
+      <li><strong>Fri (5) Combat Ready</strong> – Radar, builds, research, train/promote, training speedups.</li>
+      <li><strong>Sat (6) Raid</strong> – Healing, trucks/ops, build/research/train speedups; shield if offline.</li>
+    </ul>
+  </div>
+
+  <div id="ev-capital" class="card event-section" style="display:none">
+    <h2>Capital Appointments × Mission Readiness × VS</h2>
+    <p class="muted"><strong>Same actions → triple benefits:</strong> Capital buff + MR window points + VS day points.</p>
+    <p style="font-size:0.9rem"><strong>MR rotation (about every 4h):</strong> Tech Research → Fighter Enhancement → Hero Upgrade → Base Construction → Train Soldiers. Check in-game calendar for exact hours.</p>
+    <table>
+      <tr><th>Appointment focus</th><th>Best for</th><th>Do during window</th></tr>
+      <tr><td>Research Director</td><td>MR Tech + VS Tech day</td><td>Start research, research speedups, research data</td></tr>
+      <tr><td>Fighter roles</td><td>MR Fighter + relevant VS</td><td>Fighter parts, combat chips, enhance fighters</td></tr>
+      <tr><td>Hero Development</td><td>MR Hero + VS Hero day</td><td>Shards, recruit, skill books, hero EXP</td></tr>
+      <tr><td>Construction Minister</td><td>MR Build + VS Build day</td><td>Start big builds, build speedups, construction power</td></tr>
+      <tr><td>Military Commander</td><td>MR Train + VS Training day</td><td>Train T1–T7+, training speedups</td></tr>
+    </table>
+    <ol style="padding-left:18px;font-size:0.9rem;margin-top:10px;line-height:1.5">
+      <li>Check Mission Readiness schedule.</li>
+      <li>Get the matching Capital Appointment.</li>
+      <li>Save resources until the window opens.</li>
+      <li>Act when MR + appointment align; match VS theme the same day when possible.</li>
+      <li>Repeat each window.</li>
+    </ol>
+  </div>
+
+  <div id="ev-pandora" class="card event-section" style="display:none">
+    <h2>Pandora Event – Quick Guide</h2>
+    <ol style="padding-left:18px;font-size:0.9rem;line-height:1.55">
+      <li><strong>Join</strong> when it opens; read rules (?); active alliance if required.</li>
+      <li><strong>Basics</strong> – Complete quests for Pandora Points → unlock track rewards; rank matters.</li>
+      <li><strong>Prepare early</strong> – Save speedups, resources, stamina, recruit tickets until matching tasks appear.</li>
+      <li><strong>Play</strong> – Daily + special tasks on the right days; join alliance activities that score.</li>
+      <li><strong>Claim</strong> – Milestones as you reach them; free dailies; rank rewards at end.</li>
+      <li><strong>End</strong> – Claim everything; use expiring event items; start saving for next Pandora.</li>
+    </ol>
+    <p class="tip" style="margin-top:10px">Rewards often include hero shards, resources, speedups, equipment materials, and better guild rankings when the alliance participates together.</p>
+  </div>
+
+  <div id="ev-devour" class="card event-section" style="display:none">
+    <h2>Defeat the Devourers – Quick Guide</h2>
+    <ol style="padding-left:18px;font-size:0.9rem;line-height:1.55">
+      <li><strong>Find</strong> Devourers on the World Map via the event page.</li>
+      <li><strong>Defeat</strong> them for Rogue Coins.</li>
+      <li><strong>Spawn bosses</strong> – Kills can spawn Zombie Chiefs.</li>
+      <li><strong>Rally</strong> with alliance on Zombie Chiefs.</li>
+      <li><strong>Damage</strong> – More total boss damage → better ranking rewards.</li>
+      <li><strong>Claim</strong> – Spend Rogue Coins in Event Shop before the event ends.</li>
+    </ol>
+    <p class="tip" style="margin-top:10px"><strong>Golden rule:</strong> No Devourers → no Zombie Chiefs → no big rewards. Kill Devourers to spawn chiefs. Use stamina, watch Alliance Discovery, join every chief rally you can.</p>
+  </div>
+</div>
+
+<!-- ========== FIGHTER COMMAND ========== -->
+<div id="fighter" class="panel">
+  <div class="card">
+    <h2>✈️ Sky Fighter / Fighter Command</h2>
+    <p class="muted">Fighter stats convert into <strong>all heroes'</strong> HP/ATK/DEF in battle. Parts & Chips = VS Monday · Component Chests = Wednesday · best with Fighter Enhancement MR.</p>
+    <div class="grid grid-3">
+      <div>
+        <label>Fighter level</label>
+        <input type="number" id="fLevel" value="55" min="1" max="300" oninput="calcFighter()">
+      </div>
+      <div>
+        <label>Fighter power (shown in game)</label>
+        <input type="number" id="fPower" value="1351308" oninput="calcFighter()">
+      </div>
+      <div>
+        <label>Key upgrade stage (1–5)</label>
+        <input type="number" id="fKeyStage" value="3" min="1" max="5" oninput="calcFighter()">
+      </div>
+      <div>
+        <label>Fighter ATK (from stats screen)</label>
+        <input type="number" id="fAtk" value="11972" oninput="calcFighter()">
+      </div>
+      <div>
+        <label>Fighter DEF</label>
+        <input type="number" id="fDef" value="1158" oninput="calcFighter()">
+      </div>
+      <div>
+        <label>Fighter HP</label>
+        <input type="number" id="fHp" value="337746" oninput="calcFighter()">
+      </div>
+      <div>
+        <label>ATK coefficient %</label>
+        <input type="number" id="fAtkCoef" value="14" step="0.1" oninput="calcFighter()">
+      </div>
+      <div>
+        <label>DEF coefficient %</label>
+        <input type="number" id="fDefCoef" value="13" step="0.1" oninput="calcFighter()">
+      </div>
+      <div>
+        <label>HP coefficient %</label>
+        <input type="number" id="fHpCoef" value="13" step="0.1" oninput="calcFighter()">
+      </div>
+    </div>
+    <p class="muted" style="margin-top:8px">Or paste converted hero bonuses from the in-game “Fighter Attributes” popup:</p>
+    <div class="grid grid-3">
+      <div><label>Hero HP bonus</label><input type="number" id="fHeroHp" value="42999" oninput="calcFighter()"></div>
+      <div><label>Hero ATK bonus</label><input type="number" id="fHeroAtk" value="1657" oninput="calcFighter()"></div>
+      <div><label>Hero DEF bonus</label><input type="number" id="fHeroDef" value="146" oninput="calcFighter()"></div>
+    </div>
+    <button class="green" onclick="calcFighter()" style="margin-top:10px">Calculate</button>
+    <button class="secondary" onclick="applyFighterToCalcs()">Apply bonuses to Kill / Casualties</button>
+    <button class="secondary" onclick="saveFighter()">Save fighter to cache</button>
+    <div id="fighterResult" class="grid grid-3" style="margin-top:14px"></div>
+  </div>
+
+  <div class="card">
+    <h2>🗺️ Level & airframe roadmap</h2>
+    <div id="fighterRoadmap"></div>
+  </div>
+
+  <div class="card">
+    <h2>🧩 Components (6 slots)</h2>
+    <p class="muted">Unlock ~Base Lv.15. Sum extras below; they stack with fighter conversion.</p>
+    <div class="grid grid-3" id="compGrid">
+      <div><label>Slot 1 level</label><input type="number" id="c1" value="6" min="0" oninput="calcFighter()"></div>
+      <div><label>Slot 2 level</label><input type="number" id="c2" value="6" min="0" oninput="calcFighter()"></div>
+      <div><label>Slot 3 level</label><input type="number" id="c3" value="6" min="0" oninput="calcFighter()"></div>
+      <div><label>Slot 4 level</label><input type="number" id="c4" value="5" min="0" oninput="calcFighter()"></div>
+      <div><label>Slot 5 level</label><input type="number" id="c5" value="5" min="0" oninput="calcFighter()"></div>
+      <div><label>Slot 6 level</label><input type="number" id="c6" value="5" min="0" oninput="calcFighter()"></div>
+    </div>
+    <div class="grid grid-3" style="margin-top:8px">
+      <div><label>Extra Fighter ATK (from components)</label><input type="number" id="cAtk" value="1350" oninput="calcFighter()"></div>
+      <div><label>Extra Hero ATK</label><input type="number" id="cHAtk" value="750" oninput="calcFighter()"></div>
+      <div><label>Extra Hero DEF</label><input type="number" id="cHDef" value="410" oninput="calcFighter()"></div>
+      <div><label>Extra Fighter HP</label><input type="number" id="cHp" value="160100" oninput="calcFighter()"></div>
+      <div><label>Hero Damage %</label><input type="number" id="cDmg" value="2" step="0.1" oninput="calcFighter()"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📅 Fighter × VS × MR spend advisor</h2>
+    <div class="grid grid-2">
+      <div>
+        <label>VS day</label>
+        <select id="fVsDay" onchange="fighterSpendAdvice()">
+          <option value="0">Sunday · Rest</option>
+          <option value="1">Monday · Radar</option>
+          <option value="2">Tuesday · Construction</option>
+          <option value="3">Wednesday · Tech</option>
+          <option value="4">Thursday · Heroes</option>
+          <option value="5">Friday · Combat Ready</option>
+          <option value="6">Saturday · Raid</option>
+        </select>
+      </div>
+      <div>
+        <label>Mission Readiness now</label>
+        <select id="fMr" onchange="fighterSpendAdvice()">
+          <option value="none">Unknown / other</option>
+          <option value="fighter">Fighter Enhancement</option>
+          <option value="tech">Tech Research</option>
+          <option value="build">Base Construction</option>
+          <option value="train">Train Soldiers</option>
+          <option value="hero">Hero Upgrade</option>
+        </select>
+      </div>
+    </div>
+    <div id="fSpendAdvice" class="tip" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>🎯 Chip vs Parts trainer</h2>
+    <div class="grid grid-2">
+      <div>
+        <label>Training progress % (0–100)</label>
+        <input type="number" id="fTrainPct" value="65" min="0" max="100" oninput="fighterTrainAdvice()">
+      </div>
+      <div>
+        <label>What are you using?</label>
+        <select id="fTrainItem" onchange="fighterTrainAdvice()">
+          <option value="chips">Combat Chips</option>
+          <option value="parts">Fighter Parts</option>
+        </select>
+      </div>
+    </div>
+    <div id="fTrainAdvice" class="tip" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2>🪽 Wingman Plan (server day 82+)</h2>
+    <p class="muted">Upgrade Fighter to Lv.10 unlocks Wingman Plan. Each plan: Initiator, Attack, Support, Defense. Pick focus for the fight type.</p>
+    <select id="fWingFocus" onchange="fighterWingAdvice()">
+      <option value="raid">Raid / PvE damage</option>
+      <option value="arena">Arena / PvP</option>
+      <option value="garrison">Garrison defense</option>
+      <option value="balanced">Balanced</option>
+    </select>
+    <div id="fWingAdvice" class="tip" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2>📊 Power split (hero vs fighter vs troops)</h2>
+    <p class="muted">Rough view of where your strength sits. Uses roster hero sum + fighter power + troop estimate from Roster tab.</p>
+    <div id="fPowerSplit"></div>
+    <button class="secondary" onclick="calcPowerSplit()">Refresh split</button>
+  </div>
+</div>
+
+<!-- ========== NOW ========== -->
+<div id="now" class="panel">
+  <div class="card">
+    <h2>⚡ What should I do now?</h2>
+    <p class="muted">Uses <strong>SERVER day</strong> (clock bar offset) + optional Mission Readiness.</p>
+    <div class="grid grid-2">
+      <div>
+        <label>Mission Readiness now</label>
+        <select id="nowMr" onchange="renderNowAdvice()">
+          <option value="none">Unknown / other</option>
+          <option value="fighter">Fighter Enhancement</option>
+          <option value="tech">Tech Research</option>
+          <option value="build">Base Construction</option>
+          <option value="train">Train Soldiers</option>
+          <option value="hero">Hero Upgrade</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="green" onclick="renderNowAdvice()">Refresh advice</button>
+      </div>
+    </div>
+    <div id="nowAdvice" class="tip" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- ========== TIPS ========== -->
+<div id="tips" class="panel">
+  <div class="card">
+    <h2>💡 Tips Guide</h2>
+    <input type="search" id="tipsSearch" placeholder="Search tips…" oninput="renderTipsGuide()" style="margin-bottom:10px">
+    <div id="tipsGuide"></div>
+  </div>
+</div>
+
+<!-- ========== EXTRA TOOLS ========== -->
+<div id="tools" class="panel">
+  <div class="card">
+    <h2>🧰 Extra tools</h2>
+    <p class="muted"><span class="estimated">Estimated</span> helpers — verify in-game.</p>
+  </div>
+  <div class="card">
+    <h3>Giant Invader — best 5 from roster</h3>
+    <select id="giFaction">
+      <option value="Warrior">Warrior week</option>
+      <option value="Tactical">Tactical week</option>
+      <option value="Assault">Assault week</option>
+    </select>
+    <button class="green" onclick="giantInvaderFromRoster()">Build squad</button>
+    <div id="giResult" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h3>Rally planner</h3>
+    <div class="grid grid-2">
+      <div><label>Your march power</label><input type="number" id="rallyYou" value="5000000"></div>
+      <div><label>Mates total power</label><input type="number" id="rallyMates" value="15000000"></div>
+      <div><label>Enemy power</label><input type="number" id="rallyEnemy" value="18000000"></div>
+    </div>
+    <button onclick="calcRally()">Estimate</button>
+    <div id="rallyResult" class="tip" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h3>Hospital planner</h3>
+    <div class="grid grid-2">
+      <div><label>Free beds</label><input type="number" id="hospBeds" value="5000"></div>
+      <div><label>Expected wounded</label><input type="number" id="hospWound" value="8000"></div>
+    </div>
+    <button onclick="calcHospital()">Check</button>
+    <div id="hospResult" class="tip" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h3>Speedup inventory (hours)</h3>
+    <div class="grid grid-3">
+      <div><label>Build h</label><input type="number" id="suBuild" value="0"></div>
+      <div><label>Research h</label><input type="number" id="suRes" value="0"></div>
+      <div><label>Train h</label><input type="number" id="suTrain" value="0"></div>
+      <div><label>Heal h</label><input type="number" id="suHeal" value="0"></div>
+    </div>
+    <button onclick="calcSpeedups()">Summarize for VS</button>
+    <div id="suResult" class="tip" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h3>Enemy lineup → counter hint</h3>
+    <input type="text" id="enemyNames" placeholder="e.g. Arnold, Monroe, Bekka, Leah, Carter">
+    <button onclick="counterHint()">Suggest</button>
+    <div id="counterResult" class="tip" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h3>Backup / reset</h3>
+    <button class="secondary" onclick="exportFullBackup()">⬇️ Full JSON backup</button>
+    <button class="secondary" onclick="document.getElementById('backupFile').click()">⬆️ Import backup</button>
+    <button onclick="resetDemoData()" style="background:#555">Reset demo numbers</button>
+    <input type="file" id="backupFile" accept=".json,application/json" style="display:none" onchange="importFullBackup(event)">
+  </div>
+  <div class="card">
+    <h3>Printable day card</h3>
+    <button class="secondary" onclick="printDayCard()">🖨️ Print today’s VS card</button>
+  </div>
+</div>
+
+<!-- ========== ABOUT / CREDITS / FEEDBACK ========== -->
+<div id="about" class="panel">
+  <div class="card">
+    <h2>ℹ️ About · Credits · Feedback</h2>
+    <h3>About this tool</h3>
+    <p style="font-size:0.9rem">Unofficial community helper for <strong>Z Route: Redemption</strong>. Runs fully in your browser: roster, formations, casualty / kill estimates, OCR, VS guidance. Not affiliated with 37GAMES.</p>
+
+    <h3>How community sites gather data</h3>
+    <ul style="padding-left:18px;font-size:0.9rem">
+      <li><strong>zroute-tools.com</strong> – You enter radar / mission numbers; saved on your device only. No game login.</li>
+      <li><strong>zrouteops.com</strong> – You mark owned heroes; roster in browser localStorage.</li>
+      <li><strong>zroutehq.com</strong> – Calculators use numbers you type; meta is public guides.</li>
+      <li><strong>This app</strong> – Same idea: your data stays local (cache / TXT / share link you choose).</li>
+    </ul>
+
+    <h3>Sources</h3>
+    <ul style="padding-left:18px;font-size:0.9rem">
+      <li><a href="https://zrouteops.com/" target="_blank" style="color:var(--accent2)">zrouteops.com</a> – roster, scenarios, pairings</li>
+      <li><a href="https://zroutehq.com/" target="_blank" style="color:var(--accent2)">zroutehq.com</a> – tier list, morale, VS guides</li>
+      <li><a href="https://zroute-tools.com/" target="_blank" style="color:var(--accent2)">zroute-tools.com</a> – Route Reminder, Radar, Hive</li>
+      <li>In-game Camp Effects, Training Camp, VS calendar (player screenshots)</li>
+    </ul>
+
+    <h3>Credits</h3>
+    <p style="font-size:0.9rem">Built as a client-side analyzer with community meta. Game art and trademarks belong to 37GAMES. Calculations are approximate.</p>
+
+    <h3>Feedback</h3>
+    <label>Your message (saved only on this device unless you Export)</label>
+    <textarea id="feedbackText" rows="3" placeholder="Bug, idea, or thank-you…"></textarea>
+    <button class="green" onclick="saveFeedback()" style="margin-top:6px">Save feedback locally</button>
+    <button class="secondary" onclick="exportFeedback()">Export feedback TXT</button>
+
+    <h3 style="margin-top:16px">Guestbook (this browser)</h3>
+    <input type="text" id="gbName" placeholder="Name">
+    <input type="text" id="gbMsg" placeholder="Short message" style="margin-top:6px">
+    <button onclick="addGuestbook()" style="margin-top:6px">Sign guestbook</button>
+    <div id="guestbookList" style="margin-top:10px;font-size:0.9rem"></div>
+  </div>
+</div>
+
+<footer>
+  Unofficial community tool • Data from public sources • Not affiliated with 37GAMES<br>
+  All calculations are approximate. Always verify with in-game results.
+</footer>
+
+<script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<script defer src="/js/01-data.js"></script>
+<script defer src="/js/02-tabs.js"></script>
+<script defer src="/js/03-roster.js"></script>
+<script defer src="/js/04-formation.js"></script>
+<script defer src="/js/05-casualty-predictor.js"></script>
+<script defer src="/js/06-battle-history.js"></script>
+<script defer src="/js/07-stats.js"></script>
+<script defer src="/js/08-readiness.js"></script>
+<script defer src="/js/09-kill-calculator.js"></script>
+<script defer src="/js/10-mode-help-chips.js"></script>
+<script defer src="/js/11-profiles-import-export.js"></script>
+<script defer src="/js/12-fighter-command.js"></script>
+<script defer src="/js/13-command-strip-navigation.js"></script>
+<script defer src="/js/14-heroes-clocks-feedback.js"></script>
+<script defer src="/js/15-background-library.js"></script>
+<script defer src="/js/16-tips-events-tools.js"></script>
+<script defer src="/js/17-ocr-and-init.js"></script>
+</body>
+</html>
