@@ -21,5 +21,7 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install
+      - name: Check combined browser scripts
+        run: cat public/js/*.js > /tmp/zroute-combined.js && node --check /tmp/zroute-combined.js
       - name: Build production site
         run: npm run build
