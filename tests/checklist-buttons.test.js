@@ -37,8 +37,7 @@ test('command buttons retain a mobile-friendly 44px minimum touch target', () =>
   assert.match(styles, /\.cmd-chip\s*\{[^}]*min-height:\s*44px/s);
 });
 
-
 test('checklist renderer scripts use versioned URLs to bypass stale browser caches', () => {
-  assert.match(index, /<script defer src="\\/js\\/02-tabs\\.js\\?v=\\d{8}-\\d+"><\\/script>/);
-  assert.match(index, /<script defer src="\\/js\\/13-command-strip-navigation\\.js\\?v=\\d{8}-\\d+"><\\/script>/);
+  assert.match(index, /<script defer src="\/js\/02-tabs\.js\?v=\d{8}-\d+"><\/script>/);
+  assert.match(index, /<script defer src="\/js\/13-command-strip-navigation\.js\?v=\d{8}-\d+"><\/script>/);
 });
