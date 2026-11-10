@@ -1,23 +1,47 @@
-// ========== OCR (Tesseract.js – client-side only, no save) ==========
+// ========== OCR (Tesseract.js – loaded only when the user requests OCR) ==========
+let tesseractLoadPromise = null;
+
+function ensureTesseractLoaded() {
+  if (window.Tesseract) return Promise.resolve(window.Tesseract);
+  if (tesseractLoadPromise) return tesseractLoadPromise;
+  tesseractLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    script.async = true;
+    script.onload = () => window.Tesseract
+      ? resolve(window.Tesseract)
+      : reject(new Error('Tesseract loaded without exposing its API.'));
+    script.onerror = () => reject(new Error('Could not load Tesseract.js. Check your internet connection.'));
+    document.head.appendChild(script);
+  }).catch(error => {
+    tesseractLoadPromise = null;
+    throw error;
+  });
+  return tesseractLoadPromise;
+}
+
 async function runOCR(ev) {
   const file = ev.target.files?.[0];
   ev.target.value = '';
   if (!file) return;
-  if (!window.Tesseract) {
-    alert('OCR library still loading. Wait a second and try again (needs internet once to load Tesseract.js).');
-    return;
-  }
   const status = document.getElementById('ocrStatus');
   const rawEl = document.getElementById('ocrRaw');
   const matchEl = document.getElementById('ocrMatches');
   status.textContent = 'Reading image in browser (not uploaded)… 0%';
   rawEl.style.display = 'none';
   matchEl.innerHTML = '';
+  status.textContent = 'Loading private, in-browser OCR engine…';
+  try {
+    await ensureTesseractLoaded();
+  } catch (error) {
+    status.textContent = error.message;
+    return;
+  }
 
   // Object URL only in memory – never sent to a server
   const url = URL.createObjectURL(file);
   try {
-    const result = await Tesseract.recognize(url, 'eng', {
+    const result = await window.Tesseract.recognize(url, 'eng', {
       logger: m => {
         if (m.status === 'recognizing text' && m.progress != null) {
           status.textContent = 'OCR progress: ' + Math.round(m.progress * 100) + '% (private, in-browser)';
