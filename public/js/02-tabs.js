@@ -48,9 +48,9 @@ function highlightVsDay() {
       (document.getElementById('timeModeTop')?.value === 'local' ? 'LOCAL' : 'SERVER') + ' day)</span></p>' +
       info.items.map((s, i) => {
         const id = key + '-' + i;
-        return `<label class="cmd-chip ${done[id] ? 'done' : ''}" style="cursor:pointer;display:inline-flex;align-items:center;margin:3px">
-          <input type="checkbox" class="chk" data-id="${id}" ${done[id] ? 'checked' : ''} onchange="toggleCmdCheck(this)"> ${s}
-        </label>`;
+        return `<button type="button" class="cmd-chip ${done[id] ? 'done' : ''}" data-id="${id}" aria-pressed="${!!done[id]}" onclick="toggleCmdButton(this)">
+          <span class="cmd-chip-indicator" aria-hidden="true">${done[id] ? '✓' : '○'}</span><span>${s}</span>
+        </button>`;
       }).join('');
   }
   const table = document.getElementById('vsWeekTable');

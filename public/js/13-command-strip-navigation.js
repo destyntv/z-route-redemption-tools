@@ -47,9 +47,9 @@ function updateCommandStrip() {
     const done = JSON.parse(localStorage.getItem('zr_cmd_done') || '{}');
     box.innerHTML = info.items.map((s, i) => {
       const id = key + '-' + i;
-      return `<label class="cmd-chip ${done[id] ? 'done' : ''}" style="cursor:pointer">
-        <input type="checkbox" class="chk" data-id="${id}" ${done[id] ? 'checked' : ''} onchange="toggleCmdCheck(this)"> ${s}
-      </label>`;
+      return `<button type="button" class="cmd-chip ${done[id] ? 'done' : ''}" data-id="${id}" aria-pressed="${!!done[id]}" onclick="toggleCmdButton(this)">
+        <span class="cmd-chip-indicator" aria-hidden="true">${done[id] ? '✓' : '○'}</span><span>${s}</span>
+      </button>`;
     }).join('');
   }
   // keep other day selectors in sync when on auto
@@ -58,16 +58,16 @@ function updateCommandStrip() {
   const fVs = document.getElementById('fVsDay');
   if (fVs && !fVs.dataset.locked) fVs.value = String(d);
 }
-function toggleCmdCheck(input) {
+function toggleCmdButton(button) {
   const done = JSON.parse(localStorage.getItem('zr_cmd_done') || '{}');
-  const id = input.dataset.id;
-  if (input.checked) done[id] = 1;
+  const id = button.dataset.id;
+  if (!id) return;
+  const isDone = button.getAttribute('aria-pressed') !== 'true';
+  if (isDone) done[id] = 1;
   else delete done[id];
   localStorage.setItem('zr_cmd_done', JSON.stringify(done));
-  input.closest('.cmd-chip')?.classList.toggle('done', input.checked);
-}
-function toggleCmdChip(el) {
-  // legacy no-op if any old chips remain
-  const cb = el.querySelector?.('input[type=checkbox]');
-  if (cb) { cb.checked = !cb.checked; toggleCmdCheck(cb); }
+  button.setAttribute('aria-pressed', String(isDone));
+  button.classList.toggle('done', isDone);
+  const indicator = button.querySelector('.cmd-chip-indicator');
+  if (indicator) indicator.textContent = isDone ? '✓' : '○';
 }
