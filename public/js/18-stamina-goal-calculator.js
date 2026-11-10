@@ -6,6 +6,8 @@
   ];
   const numberFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
   const wholeFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+  const priorityInput = document.getElementById('staminaCanPriority');
+  const priorityText = document.getElementById('staminaPriorityText');
   const read = id => {
     const raw = document.getElementById(id)?.value;
     if (raw == null || raw.trim() === '') return NaN;
@@ -59,16 +61,34 @@
     const available = inventory.cans10 * 10 + inventory.cans50 * 50 +
       inventory.current + inventory.claims * 50;
 
-    // Cans and free claims are indivisible. The final item in a category can
-    // create surplus stamina, but the user's requested priority is preserved.
+    // Cans and claims are indivisible. Honor the selected can priority, then
+    // use free claims, current stamina, and the other can size.
+    const canPriority = priorityInput?.value === '10' ? '10' : '50';
+    const firstIs50 = canPriority === '50';
     let remainingNeed = staminaNeeded;
-    const use50 = Math.min(inventory.cans50, remainingNeed > 0 ? Math.ceil(remainingNeed / 50) : 0);
-    remainingNeed = Math.max(0, remainingNeed - use50 * 50);
+    let use50 = 0;
+    let use10 = 0;
+    if (firstIs50) {
+      use50 = Math.min(inventory.cans50, remainingNeed > 0 ? Math.ceil(remainingNeed / 50) : 0);
+      remainingNeed = Math.max(0, remainingNeed - use50 * 50);
+    } else {
+      use10 = Math.min(inventory.cans10, remainingNeed > 0 ? Math.ceil(remainingNeed / 10) : 0);
+      remainingNeed = Math.max(0, remainingNeed - use10 * 10);
+    }
     const useClaims = Math.min(inventory.claims, remainingNeed > 0 ? Math.ceil(remainingNeed / 50) : 0);
     remainingNeed = Math.max(0, remainingNeed - useClaims * 50);
     const useCurrent = Math.min(inventory.current, remainingNeed);
     remainingNeed = Math.max(0, remainingNeed - useCurrent);
-    const use10 = Math.min(inventory.cans10, remainingNeed > 0 ? Math.ceil(remainingNeed / 10) : 0);
+    if (firstIs50) {
+      use10 = Math.min(inventory.cans10, remainingNeed > 0 ? Math.ceil(remainingNeed / 10) : 0);
+    } else {
+      use50 = Math.min(inventory.cans50, remainingNeed > 0 ? Math.ceil(remainingNeed / 50) : 0);
+    }
+    if (priorityText) {
+      priorityText.textContent = 'Selected order: ' + (firstIs50
+        ? '50-Stamina Cans → Free Claims → Current Stamina → 10-Stamina Cans'
+        : '10-Stamina Cans → Free Claims → Current Stamina → 50-Stamina Cans');
+    }
 
     const totalUsed = use50 * 50 + useClaims * 50 + useCurrent + use10 * 10;
     const pointsGained = totalUsed * pointsPerStamina;
@@ -143,6 +163,7 @@
     input?.addEventListener('input', renderStaminaCalculator);
     input?.addEventListener('change', renderStaminaCalculator);
   });
+  priorityInput?.addEventListener('change', renderStaminaCalculator);
   document.getElementById('staminaCalculate')?.addEventListener('click', renderStaminaCalculator);
   renderStaminaCalculator();
 })();
