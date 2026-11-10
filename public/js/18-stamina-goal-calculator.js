@@ -7,7 +7,9 @@
   const numberFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
   const wholeFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
   const read = id => {
-    const value = Number(document.getElementById(id)?.value);
+    const raw = document.getElementById(id)?.value;
+    if (raw == null || raw.trim() === '') return NaN;
+    const value = Number(raw);
     return Number.isFinite(value) ? value : NaN;
   };
   const fmt = value => numberFormat.format(value);
@@ -27,6 +29,13 @@
     const tip = document.getElementById('staminaStrategy');
     if (invalid.length) {
       const statusEl = document.getElementById('staminaStatus');
+      [
+        'staminaPointsNeeded', 'staminaStaminaNeeded', 'staminaAvailable',
+        'staminaUse50', 'staminaUseClaims', 'staminaUseCurrent', 'staminaUse10',
+        'staminaTotalUsed', 'staminaPointsGained', 'staminaProjectedScore',
+        'staminaProjectedLead', 'staminaRemain50', 'staminaRemain10',
+        'staminaRemainClaims', 'staminaRemainTotal', 'staminaRemainPotential'
+      ].forEach(id => set(id, '—'));
       set('staminaStatus', '⚠️ Check your inputs');
       if (statusEl) statusEl.className = 'stamina-status warn';
       if (tip) {
