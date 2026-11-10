@@ -798,7 +798,7 @@
       <div><label for="staminaClaims">🎁 Free 50-Stamina Claims Remaining</label><input id="staminaClaims" type="number" min="0" step="1" value="2" inputmode="numeric"></div>
     </div>
     <button class="green stamina-calculate" id="staminaCalculate" type="button">⚡ Calculate</button>
-    <p class="stamina-priority muted">Resource order: 50-Stamina Cans → Free Claims → Current Stamina → 10-Stamina Cans</p>
+    <div class="stamina-priority"><label for="staminaCanPriority">🥤 Which stamina cans should be used first?</label><select id="staminaCanPriority"><option value="50" selected>50-Stamina Cans First</option><option value="10">10-Stamina Cans First</option></select><p id="staminaPriorityText" class="muted" aria-live="polite">Selected order: 50-Stamina Cans → Free Claims → Current Stamina → 10-Stamina Cans</p></div>
   </div>
   <div class="card">
     <h3>🎯 Goal overview</h3>
