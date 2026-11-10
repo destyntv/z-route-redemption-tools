@@ -107,6 +107,7 @@
   <div class="tab" data-tab="heroes">🦸 Heroes</div>
   <div class="tab" data-tab="vsguide">📅 VS + MR</div>
   <div class="tab" data-tab="events">🎪 Events</div>
+  <div class="tab" data-tab="stamina">⚡ Stamina Goal</div>
   <div class="tab" data-tab="fighter">✈️ Fighter</div>
   <div class="tab" data-tab="now">⚡ Now</div>
   <div class="tab" data-tab="tips">💡 Tips</div>
@@ -775,6 +776,69 @@
   </div>
 </div>
 
+<div id="stamina" class="panel">
+  <div class="card">
+    <h2>⚡ Event Push Calculator</h2>
+    <p class="muted">Plan your stamina spend to overtake the current event leader. Results update instantly as you edit your scores and inventory.</p>
+  </div>
+  <div class="card">
+    <h3>🏅 Event scores</h3>
+    <div class="stamina-input-grid">
+      <div><label for="staminaYourScore">🏅 Your Score</label><input id="staminaYourScore" type="number" min="0" step="1" value="104890" inputmode="numeric"></div>
+      <div><label for="staminaLeaderScore">🏆 Leader Score</label><input id="staminaLeaderScore" type="number" min="0" step="1" value="280088" inputmode="numeric"></div>
+      <div><label for="staminaPointsPer">⚡ Points Per 1 Stamina</label><input id="staminaPointsPer" type="number" min="0.01" step="1" value="100" inputmode="decimal"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>🎒 Stamina inventory</h3>
+    <div class="stamina-input-grid">
+      <div><label for="stamina10Owned">🥤 10-Stamina Cans Owned</label><input id="stamina10Owned" type="number" min="0" step="1" value="31" inputmode="numeric"></div>
+      <div><label for="stamina50Owned">🥤 50-Stamina Cans Owned</label><input id="stamina50Owned" type="number" min="0" step="1" value="33" inputmode="numeric"></div>
+      <div><label for="staminaCurrent">⚡ Current Stamina</label><input id="staminaCurrent" type="number" min="0" step="1" value="4" inputmode="numeric"></div>
+      <div><label for="staminaClaims">🎁 Free 50-Stamina Claims Remaining</label><input id="staminaClaims" type="number" min="0" step="1" value="2" inputmode="numeric"></div>
+    </div>
+    <button class="green stamina-calculate" id="staminaCalculate" type="button">⚡ Calculate</button>
+    <p class="stamina-priority muted">Resource order: 50-Stamina Cans → Free Claims → Current Stamina → 10-Stamina Cans</p>
+  </div>
+  <div class="card">
+    <h3>🎯 Goal overview</h3>
+    <div class="stamina-stat-grid">
+      <div class="stamina-stat"><span>🎯 Points Needed</span><strong id="staminaPointsNeeded">—</strong></div>
+      <div class="stamina-stat"><span>⚡ Stamina Needed</span><strong id="staminaStaminaNeeded">—</strong></div>
+      <div class="stamina-stat"><span>🎒 Available Stamina</span><strong id="staminaAvailable">—</strong></div>
+    </div>
+    <div class="stamina-status-row"><span id="staminaStatus" class="stamina-status" role="status">Calculating…</span></div>
+  </div>
+  <div class="card">
+    <h3>🧭 Resource plan — consume this</h3>
+    <div class="stamina-plan-grid">
+      <div><span>🥤 50-Stamina Cans To Use</span><strong id="staminaUse50">—</strong></div>
+      <div><span>🎁 Free Claims To Use</span><strong id="staminaUseClaims">—</strong></div>
+      <div><span>⚡ Current Stamina To Use</span><strong id="staminaUseCurrent">—</strong></div>
+      <div><span>🥤 10-Stamina Cans To Use</span><strong id="staminaUse10">—</strong></div>
+    </div>
+    <div class="stamina-results-grid">
+      <div><span>Total Stamina Used</span><strong id="staminaTotalUsed">—</strong></div>
+      <div><span>Total Points Gained</span><strong id="staminaPointsGained">—</strong></div>
+      <div><span>Projected Score</span><strong id="staminaProjectedScore">—</strong></div>
+      <div><span>Projected Lead Over Current #1</span><strong id="staminaProjectedLead">—</strong></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>🎒 Inventory remaining after the push</h3>
+    <div class="stamina-plan-grid">
+      <div><span>Remaining 50-Stamina Cans</span><strong id="staminaRemain50">—</strong></div>
+      <div><span>Remaining 10-Stamina Cans</span><strong id="staminaRemain10">—</strong></div>
+      <div><span>Remaining Free Claims</span><strong id="staminaRemainClaims">—</strong></div>
+      <div><span>Remaining Stamina</span><strong id="staminaRemainTotal">—</strong></div>
+    </div>
+    <div class="stamina-stat stamina-potential"><span>✨ Remaining Point Potential</span><strong id="staminaRemainPotential">—</strong></div>
+  </div>
+  <div class="stamina-tip stamina-tip-good" id="staminaStrategy" aria-live="polite">
+    <h3>🧠 Strategy Tip</h3><p>Enter your score and inventory to see your push strategy.</p>
+  </div>
+</div>
+
 <!-- ========== FIGHTER COMMAND ========== -->
 <div id="fighter" class="panel">
   <div class="card">
@@ -1067,8 +1131,6 @@
   All calculations are approximate. Always verify with in-game results.
 </footer>
 
-<script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
 <script defer src="/js/01-data.js"></script>
 <script defer src="/js/02-tabs.js"></script>
 <script defer src="/js/03-roster.js"></script>
@@ -1086,5 +1148,6 @@
 <script defer src="/js/15-background-library.js"></script>
 <script defer src="/js/16-tips-events-tools.js"></script>
 <script defer src="/js/17-ocr-and-init.js"></script>
+<script defer src="/js/18-stamina-goal-calculator.js"></script>
 </body>
 </html>
