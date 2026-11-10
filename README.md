@@ -13,7 +13,8 @@ A client-side companion for **Z Route: Redemption**, migrated from the original 
 - VS / Mission Readiness guides and Events Hub
 - Fighter Command planner
 - Local/server clocks, daily checklist and tips
-- Screenshot OCR using Tesseract.js in the browser
+- Event stamina goal calculator with resource-priority planning
+- Screenshot OCR using Tesseract.js, loaded on demand in the browser
 - JSON/TXT import, export and backup
 - Custom backgrounds and compact/basic/advanced modes
 
@@ -51,7 +52,6 @@ The repository includes `vercel.json` with these build settings.
 - `index.html` — application markup and script loading order
 - `src/styles/app.css` — original stylesheet, extracted without redesign
 - `public/js/` — ordered classic scripts split by feature area
-- `zroute-casualty-analyzer (8).html` — untouched original single-file source/backup
 
 The JavaScript files intentionally load as ordered classic scripts. The current interface uses global functions and inline event handlers; retaining classic-script scope keeps those interactions working during this structural migration. The original function implementations and calculation logic are preserved.
 
@@ -59,7 +59,7 @@ The JavaScript files intentionally load as ordered classic scripts. The current 
 
 The current version stores profile, roster, battle and preference data in the browser's `localStorage`. It does not require an API, database, login or server secrets. Data is local to the browser and deployment origin; it does not automatically sync between devices or between the original local HTML file and the Vercel domain. Use the built-in JSON/TXT export and import/backup tools when moving data.
 
-OCR runs in the browser through Tesseract.js loaded from jsDelivr. The selected image is processed client-side by the OCR feature and is not uploaded to this application's server. Loading the OCR library requires an internet connection.
+OCR runs in the browser through Tesseract.js, downloaded from jsDelivr only when you first choose a screenshot. The selected image is processed client-side and is not uploaded to this application's server. Using OCR requires an internet connection.
 
 ## Notes
 
